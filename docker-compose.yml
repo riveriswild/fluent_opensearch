@@ -1,0 +1,51 @@
+services:
+  opensearch:
+    image: opensearchproject/opensearch:2.7.0
+    container_name: opensearch
+    environment:
+      - discovery.type=single-node
+      - plugins.security.disabled=true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - opensearch-data:/usr/share/opensearch/data
+    ports:
+      - 9200:9200
+    networks:
+      - superset_test_2_default
+
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:2.7.0
+    container_name: opensearch-dashboards
+    environment:
+      - OPENSEARCH_HOSTS=http://opensearch:9200
+    ports:
+      - 5601:5601
+    networks:
+      - superset_test_2_default
+      
+  fluentbit:
+    image: fluent/fluent-bit:latest
+    container_name: fluentbit
+    volumes:
+      - ./fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf   # Mount custom config file
+      - ./parsers.conf:/fluent-bit/etc/parsers.conf         # Mount custom parsers file
+    depends_on:
+      - opensearch
+    ports:
+      - 2020:2020       # HTTP server for monitoring
+      - 5170:5170       # TCP input for Fluent Bit
+      - 5140:5140/udp   # Syslog input for Fluent Bit
+    networks:
+      - superset_test_2_default
+    entrypoint: ["/fluent-bit/bin/fluent-bit", "-c", "/fluent-bit/etc/fluent-bit.conf"]
+
+volumes:
+  opensearch-data:
+
+networks:
+  superset_test_2_default:
+    external: true
+    name: superset_test_2_default
